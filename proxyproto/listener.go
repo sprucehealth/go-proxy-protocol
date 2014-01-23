@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"io"
 	"net"
+	"sync"
 )
 
 // TODO: use a sync.Cache instead
@@ -33,6 +34,7 @@ type Conn struct {
 	net.Conn
 	ProxyHeader *Header
 	rd          *bufio.Reader
+	mu          sync.Mutex
 }
 
 func (c *Conn) RemoteAddr() net.Addr {
@@ -40,11 +42,24 @@ func (c *Conn) RemoteAddr() net.Addr {
 }
 
 func (c *Conn) Read(b []byte) (int, error) {
-	return c.rd.Read(b)
+	c.mu.Lock()
+	rd := c.rd
+	c.mu.Unlock()
+	if rd != nil {
+		return rd.Read(b)
+	} else {
+		return c.Conn.Read(b)
+	}
 }
 
 func (c *Conn) Close() error {
-	putBufioReader(c.rd)
+	c.mu.Lock()
+	rd := c.rd
+	c.rd = nil
+	c.mu.Unlock()
+	if rd != nil {
+		putBufioReader(rd)
+	}
 	return c.Conn.Close()
 }
 
