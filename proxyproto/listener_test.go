@@ -1,6 +1,7 @@
 package proxyproto
 
 import (
+	"crypto/tls"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -53,7 +54,7 @@ func TestListener(t *testing.T) {
 	}
 }
 
-func TestListenerHTTP(t *testing.T) {
+func testListenerHTTP(t *testing.T, useTLS bool) {
 	headerName := "X-RemoteAddr"
 	serv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set(headerName, req.RemoteAddr)
@@ -64,7 +65,11 @@ func TestListenerHTTP(t *testing.T) {
 		t.Fatal(err)
 	}
 	serv.Listener = ln
-	serv.Start()
+	if useTLS {
+		serv.StartTLS()
+	} else {
+		serv.Start()
+	}
 	defer serv.Close()
 
 	src := "1.2.3.4:1234"
@@ -84,18 +89,31 @@ func TestListenerHTTP(t *testing.T) {
 			}
 			return conn, err
 		},
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: true,
+		},
 	}
 	cli := &http.Client{
 		Transport: transport,
 	}
-	res, err := cli.Get(serv.URL)
-	if err != nil {
-		t.Fatal(err)
+	for i := 0; i < 8; i++ {
+		res, err := cli.Get(serv.URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if res.StatusCode != 200 {
+			t.Fatalf("Bad StatusCode %d", res.StatusCode)
+		}
+		if ra := res.Header.Get(headerName); ra != src {
+			t.Fatalf("Expected %s, got %s", src, ra)
+		}
 	}
-	if res.StatusCode != 200 {
-		t.Fatalf("Bad StatusCode %d", res.StatusCode)
-	}
-	if ra := res.Header.Get(headerName); ra != src {
-		t.Fatalf("Expected %s, got %s", src, ra)
-	}
+}
+
+func TestListenerHTTP(t *testing.T) {
+	testListenerHTTP(t, false)
+}
+
+func TestListenerHTTPS(t *testing.T) {
+	testListenerHTTP(t, true)
 }
