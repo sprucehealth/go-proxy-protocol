@@ -114,9 +114,7 @@ func (h *Header) WriteV1(wr io.Writer) (int, error) {
 	return fmt.Fprint(wr, h.String()+crlf)
 }
 
-func ReadHeader(rd io.Reader) (*Header, error) {
-	bufRd := bufio.NewReader(rd)
-
+func ReadHeader(bufRd *bufio.Reader) (*Header, error) {
 	// Reader the header magic to identify the protocol version
 
 	if magic, err := bufRd.Peek(6); err != nil {

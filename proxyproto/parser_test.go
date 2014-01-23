@@ -1,6 +1,7 @@
 package proxyproto
 
 import (
+	"bufio"
 	"strings"
 	"testing"
 )
@@ -8,7 +9,7 @@ import (
 func TestV1ParseTCP4(t *testing.T) {
 	data := "PROXY TCP4 127.0.0.1 127.0.0.2 111 222\r\n"
 	rd := strings.NewReader(data)
-	head, err := ReadHeader(rd)
+	head, err := ReadHeader(bufio.NewReader(rd))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +33,7 @@ func TestV1ParseTCP4(t *testing.T) {
 func TestV1ParseTCP6(t *testing.T) {
 	data := "PROXY TCP4 2607:f8b0:4010:801::1004%en0 127.0.0.2 111 222\r\n"
 	rd := strings.NewReader(data)
-	head, err := ReadHeader(rd)
+	head, err := ReadHeader(bufio.NewReader(rd))
 	if err != nil {
 		t.Fatal(err)
 	}
