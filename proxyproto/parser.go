@@ -25,9 +25,7 @@ var (
 	v2Magic2 = []byte{0x0A, 0x51, 0x55, 0x49, 0x54, 0x0A}
 )
 
-const (
-	crlf = "\r\n"
-)
+const crlf = "\r\n"
 
 type Protocol string
 

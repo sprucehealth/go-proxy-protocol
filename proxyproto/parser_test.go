@@ -53,3 +53,17 @@ func TestV1ParseTCP6(t *testing.T) {
 		t.Fatalf("Expected 127.0.0.2, got %s", head.DstAddr)
 	}
 }
+
+func BenchmarkParser(b *testing.B) {
+	b.ReportAllocs()
+	data := "PROXY TCP4 127.0.0.1 127.0.0.2 111 222\r\n"
+	rd := strings.NewReader(data)
+	for i := 0; i < b.N; i++ {
+		rd.Seek(0, 0)
+		br := newBufioReader(rd)
+		if _, err := ReadHeader(br); err != nil {
+			b.Fatal(err)
+		}
+		putBufioReader(br)
+	}
+}

@@ -7,27 +7,21 @@ import (
 	"sync"
 )
 
-// TODO: use a sync.Cache instead
 var (
-	bufioReaderCache = make(chan *bufio.Reader, 4)
+	bufioReaderCache = &sync.Pool{}
 )
 
 func newBufioReader(r io.Reader) *bufio.Reader {
-	select {
-	case p := <-bufioReaderCache:
-		p.Reset(r)
-		return p
-	default:
-		return bufio.NewReader(r)
+	if br, ok := bufioReaderCache.Get().(*bufio.Reader); ok {
+		br.Reset(r)
+		return br
 	}
+	return bufio.NewReader(r)
 }
 
 func putBufioReader(br *bufio.Reader) {
 	br.Reset(nil)
-	select {
-	case bufioReaderCache <- br:
-	default:
-	}
+	bufioReaderCache.Put(br)
 }
 
 type Conn struct {
