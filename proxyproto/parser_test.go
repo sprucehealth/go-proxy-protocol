@@ -2,6 +2,7 @@ package proxyproto
 
 import (
 	"bufio"
+	"bytes"
 	"strings"
 	"testing"
 )
@@ -56,8 +57,7 @@ func TestV1ParseTCP6(t *testing.T) {
 
 func BenchmarkParser(b *testing.B) {
 	b.ReportAllocs()
-	data := "PROXY TCP4 127.0.0.1 127.0.0.2 111 222\r\n"
-	rd := strings.NewReader(data)
+	rd := bytes.NewReader([]byte("PROXY TCP4 127.0.0.1 127.0.0.2 111 222\r\n"))
 	for i := 0; i < b.N; i++ {
 		rd.Seek(0, 0)
 		br := newBufioReader(rd)

@@ -2,6 +2,7 @@ package proxyproto
 
 import (
 	"crypto/tls"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -58,6 +59,7 @@ func testListenerHTTP(t *testing.T, useTLS bool) {
 	headerName := "X-RemoteAddr"
 	serv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		w.Header().Set(headerName, req.RemoteAddr)
+		w.Write([]byte("HELLO"))
 	}))
 
 	ln, err := Listen("tcp", "127.0.0.1:7792")
@@ -107,6 +109,14 @@ func testListenerHTTP(t *testing.T, useTLS bool) {
 		if ra := res.Header.Get(headerName); ra != src {
 			t.Fatalf("Expected %s, got %s", src, ra)
 		}
+		b, err := ioutil.ReadAll(res.Body)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(b) != "HELLO" {
+			t.Fatalf("Expected 'HELLO' got '%s'", string(b))
+		}
+		res.Body.Close()
 	}
 }
 

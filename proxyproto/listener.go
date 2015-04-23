@@ -7,9 +7,7 @@ import (
 	"sync"
 )
 
-var (
-	bufioReaderCache = &sync.Pool{}
-)
+var bufioReaderCache sync.Pool
 
 func newBufioReader(r io.Reader) *bufio.Reader {
 	if br, ok := bufioReaderCache.Get().(*bufio.Reader); ok {
@@ -40,7 +38,29 @@ func (c *Conn) Read(b []byte) (int, error) {
 	rd := c.rd
 	c.mu.Unlock()
 	if rd != nil {
-		return rd.Read(b)
+		bn := rd.Buffered()
+		// No data left in buffer so switch to underlying connection
+		if bn == 0 {
+			c.mu.Lock()
+			c.rd = nil
+			c.mu.Unlock()
+			return c.Conn.Read(b)
+		}
+		// If reading less than buffered data then just let it go through
+		// since we'll need to continue using the bufio reader
+		if bn < len(b) {
+			return rd.Read(b)
+		}
+		// Drain the bufio and switch to the connection directly. This will
+		// read less data than requested, but that's allowed by the io.Reader
+		// interface contract.
+		n, err := rd.Read(b[:bn])
+		if err == nil {
+			c.mu.Lock()
+			c.rd = nil
+			c.mu.Unlock()
+		}
+		return n, err
 	} else {
 		return c.Conn.Read(b)
 	}
@@ -77,6 +97,7 @@ func (l *Listener) Accept() (net.Conn, error) {
 	rd := newBufioReader(conn)
 	head, err := ReadHeader(rd)
 	if err != nil {
+		putBufioReader(rd)
 		return nil, err
 	}
 	return &Conn{Conn: conn, ProxyHeader: head, rd: rd}, nil

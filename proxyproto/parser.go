@@ -109,7 +109,7 @@ func (h *Header) String() string {
 }
 
 func (h *Header) WriteV1(wr io.Writer) (int, error) {
-	return fmt.Fprint(wr, h.String()+crlf)
+	return io.WriteString(wr, h.String()+crlf)
 }
 
 func ReadHeader(bufRd *bufio.Reader) (*Header, error) {
