@@ -2,6 +2,7 @@ package proxyproto
 
 import (
 	"crypto/tls"
+	"fmt"
 	"io/ioutil"
 	"net"
 	"net/http"
@@ -15,6 +16,8 @@ func TestListener(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	defer ln.Close()
+
 	ch := make(chan string, 1)
 	go func() {
 		for {
@@ -30,7 +33,6 @@ func TestListener(t *testing.T) {
 			return
 		}
 	}()
-	defer ln.Close()
 
 	conn, err := net.Dial("tcp", "127.0.0.1:7791")
 	if err != nil {
@@ -49,6 +51,48 @@ func TestListener(t *testing.T) {
 	case addr := <-ch:
 		if addr != src {
 			t.Fatalf("Expected %s, got %s", src, addr)
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Timed out")
+	}
+}
+
+func TestEOF(t *testing.T) {
+	// Make sure a bad or missing header (EOF) does not cause Accept to error.
+	ln, err := Listen("tcp", "127.0.0.1:7791")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer ln.Close()
+
+	ch := make(chan string, 1)
+	go func() {
+		for {
+			conn, err := ln.Accept()
+			if err != nil {
+				ch <- fmt.Sprintf("Accept returned unexpected error: %s", err)
+				return
+			}
+			defer conn.Close()
+			b := make([]byte, 1)
+			if _, err := conn.Read(b); err == nil {
+				ch <- "Read should have returned an error"
+				return
+			}
+			ch <- ""
+		}
+	}()
+
+	conn, err := net.Dial("tcp", "127.0.0.1:7791")
+	if err != nil {
+		t.Fatal(err)
+	}
+	conn.Close()
+
+	select {
+	case e := <-ch:
+		if e != "" {
+			t.Fatal(e)
 		}
 	case <-time.After(time.Second):
 		t.Fatal("Timed out")
