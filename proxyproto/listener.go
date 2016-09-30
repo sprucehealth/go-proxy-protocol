@@ -66,7 +66,7 @@ func (c *conn) Read(b []byte) (int, error) {
 		}
 		// If reading less than buffered data then just let it go through
 		// since we'll need to continue using the bufio reader
-		if bn < len(b) {
+		if len(b) < bn {
 			return rd.Read(b)
 		}
 		// Drain the bufio and switch to the connection directly. This will
